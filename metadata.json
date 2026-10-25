@@ -1,0 +1,6 @@
+{
+  "name": "DTZ SHIELD",
+  "description": "Advanced Free Security Suite by UltraDev (Anuga Senithu). Real-time antivirus, web shield, network scanner, privacy protection, and system optimizer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
