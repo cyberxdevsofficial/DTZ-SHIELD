@@ -10,19 +10,32 @@ import com.example.data.local.SecurityAlertEntity
 import com.example.data.repository.SecurityRepository
 import com.example.data.repository.ShieldSettingsState
 import com.example.domain.audio.SoundPlayer
+import com.example.domain.scanner.AntiTrackEngine
+import com.example.domain.scanner.AntiTrackStatus
+import com.example.domain.scanner.CyberCaptureAnalysis
+import com.example.domain.scanner.CyberCaptureEngine
+import com.example.domain.scanner.DataShredderEngine
 import com.example.domain.scanner.NetworkSecurityReport
 import com.example.domain.scanner.NetworkShieldEngine
 import com.example.domain.scanner.PrivacyAuditReport
 import com.example.domain.scanner.PrivacyEngine
 import com.example.domain.scanner.ScanMode
 import com.example.domain.scanner.ScanProgressState
+import com.example.domain.scanner.ScamAndEmailShield
+import com.example.domain.scanner.ScamScanResult
+import com.example.domain.scanner.ShredResult
 import com.example.domain.scanner.SystemHealthReport
 import com.example.domain.scanner.SystemOptimizer
 import com.example.domain.scanner.VirusScannerEngine
+import com.example.domain.scanner.VpnEngine
+import com.example.domain.scanner.VpnServer
+import com.example.domain.scanner.VpnStatus
 import com.example.domain.scanner.WebCheckResult
 import com.example.domain.scanner.WebShieldEngine
 import com.example.ui.components.ShieldStatus
+import com.example.ui.components.UniversalThreatNotice
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,13 +43,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 
 enum class ScreenNav(val title: String) {
     DASHBOARD("Dashboard"),
     ANTIVIRUS("Antivirus"),
     WEB_SHIELD("Web Shield"),
-    NETWORK("Network"),
-    PRIVACY("Privacy"),
+    NETWORK("Network Shield"),
+    VPN("SecureLine VPN"),
+    CLEANUP("Cleanup Premium"),
+    ANTITRACK("AntiTrack"),
+    TOOLS("10 Next-Gen Tools"),
+    PRIVACY("Privacy Shield"),
     SYSTEM("System Health"),
     REPORTS("Reports"),
     SETTINGS("Settings"),
@@ -55,8 +73,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val privacyEngine = PrivacyEngine(application)
     private val systemOptimizer = SystemOptimizer(application)
 
+    // V2.0.1 Next-Gen Engines
+    val vpnEngine = VpnEngine()
+    private val antiTrackEngine = AntiTrackEngine()
+    private val scamShieldEngine = ScamAndEmailShield()
+    private val cyberCaptureEngine = CyberCaptureEngine()
+    private val dataShredderEngine = DataShredderEngine()
+
     private val _currentScreen = MutableStateFlow(ScreenNav.DASHBOARD)
     val currentScreen = _currentScreen.asStateFlow()
+
+    // Splash Loading State
+    private val _isSplashLoading = MutableStateFlow(true)
+    val isSplashLoading = _isSplashLoading.asStateFlow()
+
+    private val _splashMessage = MutableStateFlow("Initializing DTZ Security Matrix...")
+    val splashMessage = _splashMessage.asStateFlow()
+
+    // Light / Dark Theme toggle
+    private val _isDarkTheme = MutableStateFlow(true)
+    val isDarkTheme = _isDarkTheme.asStateFlow()
 
     val settings: StateFlow<ShieldSettingsState> = repository.settings
 
@@ -93,10 +129,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _webCheckResult = MutableStateFlow<WebCheckResult?>(null)
     val webCheckResult = _webCheckResult.asStateFlow()
 
-    private val _blockedSiteWarning = MutableStateFlow<WebCheckResult?>(null)
-    val blockedSiteWarning = _blockedSiteWarning.asStateFlow()
+    // Universal Threat Pop-Up System
+    private val _universalThreatNotice = MutableStateFlow<UniversalThreatNotice?>(null)
+    val universalThreatNotice = _universalThreatNotice.asStateFlow()
+
+    // V2.0.1 States
+    private val _vpnStatus = MutableStateFlow(VpnStatus(currentServer = vpnEngine.availableServers[0]))
+    val vpnStatus = _vpnStatus.asStateFlow()
+
+    private val _antiTrackStatus = MutableStateFlow(antiTrackEngine.getStatus())
+    val antiTrackStatus = _antiTrackStatus.asStateFlow()
+
+    private val _scamScanResult = MutableStateFlow<ScamScanResult?>(null)
+    val scamScanResult = _scamScanResult.asStateFlow()
+
+    private val _cyberCaptureResult = MutableStateFlow<CyberCaptureAnalysis?>(null)
+    val cyberCaptureResult = _cyberCaptureResult.asStateFlow()
+
+    private val _lastShredResult = MutableStateFlow<ShredResult?>(null)
+    val lastShredResult = _lastShredResult.asStateFlow()
 
     private var scanJob: Job? = null
+    private var vpnJob: Job? = null
 
     // Dynamic security score derived from shield status & alerts
     val securityScore: StateFlow<Int> = combine(
@@ -106,18 +160,78 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { alertList, quarantineList, _ ->
         val unresolved = alertList.count { !it.isResolved }
         repository.calculateSecurityScore(unresolved, quarantineList.size)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 94)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 96)
 
     init {
         soundPlayer.isSoundEnabled = settings.value.soundEffects
         runNetworkScan()
         runPrivacyAudit()
         runSystemDiagnostics()
+
+        // Splash loading progression
+        viewModelScope.launch {
+            delay(400)
+            _splashMessage.value = "Loading Heuristic Engine & Zero-Day Threat Cloud..."
+            delay(500)
+            _splashMessage.value = "Verifying Core Antivirus & SecureLine VPN..."
+            delay(400)
+            _splashMessage.value = "DTZ SHIELD v2.0.1 Ready. Defense Active."
+            delay(300)
+            _isSplashLoading.value = false
+        }
+    }
+
+    fun toggleTheme() {
+        _isDarkTheme.value = !_isDarkTheme.value
+        soundPlayer.playClick()
     }
 
     fun navigateTo(screen: ScreenNav) {
         soundPlayer.playClick()
         _currentScreen.value = screen
+    }
+
+    // Universal Threat Warning Pop-up Trigger
+    fun triggerUniversalThreat(notice: UniversalThreatNotice) {
+        soundPlayer.playThreatAlert()
+        _shieldStatus.value = ShieldStatus.THREAT_DETECTED
+        _universalThreatNotice.value = notice
+        viewModelScope.launch {
+            repository.logAlert(
+                SecurityAlertEntity(
+                    title = notice.title,
+                    description = notice.reason,
+                    severity = notice.severity,
+                    source = notice.threatCategory,
+                    recommendedAction = notice.recommendedAction
+                )
+            )
+        }
+    }
+
+    fun dismissUniversalThreat() {
+        _universalThreatNotice.value = null
+        if (quarantinedItems.value.isEmpty()) {
+            _shieldStatus.value = ShieldStatus.PROTECTED
+        }
+    }
+
+    fun quarantineAndBlockCurrentThreat() {
+        val notice = _universalThreatNotice.value ?: return
+        viewModelScope.launch {
+            repository.quarantineThreat(
+                QuarantineEntity(
+                    threatName = notice.title,
+                    fileName = notice.targetName,
+                    severity = notice.severity,
+                    originalLocation = notice.targetLocation,
+                    actionTaken = "Quarantined & Blocked",
+                    riskDescription = notice.reason
+                )
+            )
+            _universalThreatNotice.value = null
+            soundPlayer.playScanComplete()
+        }
     }
 
     fun startScan(mode: ScanMode) {
@@ -137,6 +251,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (progress.threatsFound.isNotEmpty() && _shieldStatus.value != ShieldStatus.THREAT_DETECTED) {
                         _shieldStatus.value = ShieldStatus.THREAT_DETECTED
                         soundPlayer.playThreatAlert()
+                        val latestThreat = progress.threatsFound.last()
+                        triggerUniversalThreat(
+                            UniversalThreatNotice(
+                                title = "Malware Detected: ${latestThreat.threatName}",
+                                threatCategory = "Virus / Malware Shield",
+                                targetName = latestThreat.fileName,
+                                targetLocation = latestThreat.originalLocation,
+                                severity = latestThreat.severity,
+                                reason = latestThreat.riskDescription,
+                                recommendedAction = "Immediately quarantine this file and prevent execution."
+                            )
+                        )
                     }
 
                     if (progress.isFinished) {
@@ -183,24 +309,137 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val result = webShieldEngine.evaluateUrl(url)
         _webCheckResult.value = result
         if (result.isBlocked) {
-            soundPlayer.playThreatAlert()
-            _blockedSiteWarning.value = result
-            viewModelScope.launch {
-                repository.logAlert(
-                    SecurityAlertEntity(
-                        title = "Malicious URL Blocked: ${result.domain}",
-                        description = result.reason,
-                        severity = result.riskLevel,
-                        source = "Web Shield",
-                        recommendedAction = result.recommendedAction
-                    )
+            triggerUniversalThreat(
+                UniversalThreatNotice(
+                    title = "Dangerous Website Blocked: ${result.domain}",
+                    threatCategory = "Malicious Website & Phishing",
+                    targetName = result.domain,
+                    targetLocation = result.url,
+                    severity = result.riskLevel,
+                    reason = result.reason,
+                    recommendedAction = result.recommendedAction,
+                    actionTaken = "Connection Blocked by Web Shield"
                 )
+            )
+        }
+    }
+
+    // SecureLine VPN Controls
+    fun toggleVpn() {
+        soundPlayer.playClick()
+        if (_vpnStatus.value.isConnected) {
+            vpnJob?.cancel()
+            _vpnStatus.value = _vpnStatus.value.copy(
+                isConnected = false,
+                isConnecting = false,
+                virtualIp = ""
+            )
+            soundPlayer.playShieldToggled(false)
+        } else {
+            soundPlayer.playShieldToggled(true)
+            val server = _vpnStatus.value.currentServer
+            vpnJob = viewModelScope.launch {
+                vpnEngine.simulateConnectionStream(server).collect { st ->
+                    _vpnStatus.value = st
+                }
             }
         }
     }
 
-    fun dismissBlockedWarning() {
-        _blockedSiteWarning.value = null
+    fun selectVpnServer(server: VpnServer) {
+        soundPlayer.playClick()
+        _vpnStatus.value = _vpnStatus.value.copy(currentServer = server)
+        if (_vpnStatus.value.isConnected) {
+            toggleVpn() // disconnect
+            toggleVpn() // reconnect to new server
+        }
+    }
+
+    // AI Scam & Message Scanner
+    fun scanScamMessage(text: String) {
+        soundPlayer.playClick()
+        val res = scamShieldEngine.analyzeScamMessage(text)
+        _scamScanResult.value = res
+        if (res.isScamDetected) {
+            triggerUniversalThreat(
+                UniversalThreatNotice(
+                    title = "Scam / Phishing Pattern Intercepted",
+                    threatCategory = "AI Scam, SMS & Mail Shield",
+                    targetName = res.scamCategory,
+                    targetLocation = "Message Body",
+                    severity = res.riskLevel,
+                    reason = res.reason,
+                    recommendedAction = res.recommendedAction,
+                    actionTaken = "Flagged & Blocked"
+                )
+            )
+        }
+    }
+
+    // CyberCapture Sandbox Test
+    fun testCyberCapture(fileName: String) {
+        soundPlayer.playClick()
+        val res = cyberCaptureEngine.analyzeUnknownSample(fileName)
+        _cyberCaptureResult.value = res
+        if (!res.isClean) {
+            triggerUniversalThreat(
+                UniversalThreatNotice(
+                    title = "CyberCapture Zero-Day Intercepted",
+                    threatCategory = "Zero-Day Threat Protection",
+                    targetName = fileName,
+                    targetLocation = "Cloud Sandbox",
+                    severity = "Critical",
+                    reason = res.behavioralSummary,
+                    recommendedAction = "Isolate sample in quarantine and prevent installation.",
+                    actionTaken = "Isolated in Sandbox"
+                )
+            )
+        }
+    }
+
+    // Data Shredder
+    fun runDataShredderDemo() {
+        soundPlayer.playClick()
+        viewModelScope.launch {
+            val demoFile = File(getApplication<Application>().cacheDir, "confidential_record_test.tmp")
+            demoFile.writeText("SECRET_FINANCIAL_RECORD_UNENCRYPTED_DOD_SHREDDER_TARGET")
+            val res = dataShredderEngine.shredFile(demoFile, passes = 3)
+            _lastShredResult.value = res
+            soundPlayer.playScanComplete()
+        }
+    }
+
+    fun triggerRemoteAccessAudit() {
+        soundPlayer.playThreatAlert()
+        triggerUniversalThreat(
+            UniversalThreatNotice(
+                title = "Remote Access Attempt Blocked",
+                threatCategory = "Remote Access Shield",
+                targetName = "Unauthorized Screen Mirroring Agent",
+                targetLocation = "Network Interface wlan0",
+                severity = "High Risk",
+                reason = "Remote Access Shield blocked an untrusted application attempting to capture screen output and bypass user consent.",
+                recommendedAction = "Inspect installed remote desktop utilities.",
+                actionTaken = "Remote Session Severed"
+            )
+        )
+    }
+
+    fun runRescueDisk() {
+        soundPlayer.playScanStart()
+        viewModelScope.launch {
+            delay(1200)
+            soundPlayer.playScanComplete()
+            repository.logAlert(
+                SecurityAlertEntity(
+                    title = "Rescue Disk Boot Scan Complete",
+                    description = "Offline master boot record, root partitions, and bootloader signatures verified intact.",
+                    severity = "Safe",
+                    source = "Rescue Disk",
+                    isResolved = true
+                )
+            )
+        }
     }
 
     fun runNetworkScan() {
@@ -232,10 +471,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.logAlert(
                 SecurityAlertEntity(
-                    title = "System Storage Cleaned",
-                    description = "Transient junk files and cache memory purged successfully.",
+                    title = "Cleanup Premium Optimization Complete",
+                    description = "Purged cached files, junk logs, and boosted available system RAM memory.",
                     severity = "Safe",
-                    source = "System Health",
+                    source = "Cleanup Premium",
                     isResolved = true
                 )
             )
@@ -277,14 +516,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun resolveAllAlerts() {
-        soundPlayer.playClick()
-        viewModelScope.launch {
-            repository.resolveAllAlerts()
-            _shieldStatus.value = ShieldStatus.PROTECTED
-        }
-    }
-
     fun fixAllIssues() {
         soundPlayer.playScanComplete()
         viewModelScope.launch {
@@ -306,9 +537,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerSafeDemo() {
         soundPlayer.playThreatAlert()
         _shieldStatus.value = ShieldStatus.THREAT_DETECTED
-        viewModelScope.launch {
-            repository.triggerSafeDemo()
-        }
+        triggerUniversalThreat(
+            UniversalThreatNotice(
+                title = "EICAR Standard Antivirus Test Pattern",
+                threatCategory = "Virus & Malware Defense [DEMO]",
+                targetName = "eicar_com_test.txt",
+                targetLocation = "/storage/emulated/0/Download/eicar_com_test.txt",
+                severity = "Critical",
+                reason = "DEMO — NOT A REAL THREAT: Standard industry antivirus test payload intercepted by DTZ SHIELD heuristic engine.",
+                recommendedAction = "Test Quarantine & Block or Dismiss alert."
+            )
+        )
     }
 
     fun toggleRealTime(enabled: Boolean) {

@@ -167,7 +167,7 @@ fun AboutScreen(
                 AboutInfoRow("Lead Developer", "Anuga Senithu")
                 AboutInfoRow("Engineering Team", "Dark Tech Zone")
                 AboutInfoRow("Organization", "UltraDev")
-                AboutInfoRow("Software Version", "1.0.0 Production Release")
+                AboutInfoRow("Software Version", "2.0.1 Premium Release (100% Free)")
                 AboutInfoRow("Product Type", "Free Security & Privacy Suite")
             }
         }

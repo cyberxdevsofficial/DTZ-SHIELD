@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.GppGood
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -130,7 +133,7 @@ fun DashboardScreen(
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = "v1.0.0 FREE",
+                        text = "v2.0.1 FREE",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeonEmerald
@@ -270,6 +273,41 @@ fun DashboardScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     viewModel.navigateTo(ScreenNav.PRIVACY)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickScanButton(
+                    title = "VPN",
+                    icon = Icons.Default.VpnKey,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    viewModel.navigateTo(ScreenNav.VPN)
+                }
+                QuickScanButton(
+                    title = "Cleanup",
+                    icon = Icons.Default.CleaningServices,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    viewModel.navigateTo(ScreenNav.CLEANUP)
+                }
+                QuickScanButton(
+                    title = "AntiTrack",
+                    icon = Icons.Default.Fingerprint,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    viewModel.navigateTo(ScreenNav.ANTITRACK)
+                }
+                QuickScanButton(
+                    title = "10 Tools",
+                    icon = Icons.Default.Security,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    viewModel.navigateTo(ScreenNav.TOOLS)
                 }
             }
         }

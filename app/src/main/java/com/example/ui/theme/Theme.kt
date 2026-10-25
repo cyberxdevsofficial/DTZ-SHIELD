@@ -2,6 +2,7 @@ package com.example.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
@@ -27,13 +28,36 @@ private val DTZDarkColorScheme = darkColorScheme(
     onError = Color.White
 )
 
+private val DTZLightColorScheme = lightColorScheme(
+    primary = Color(0xFF007799),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFCBEBFF),
+    onPrimaryContainer = Color(0xFF001F29),
+    secondary = Color(0xFF008744),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFB9F6CA),
+    onSecondaryContainer = Color(0xFF00220F),
+    tertiary = Color(0xFF6200EA),
+    onTertiary = Color.White,
+    background = Color(0xFFF1F5F9),
+    onBackground = Color(0xFF0F172A),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF0F172A),
+    surfaceVariant = Color(0xFFE2E8F0),
+    onSurfaceVariant = Color(0xFF475569),
+    outline = Color(0xFFCBD5E1),
+    error = Color(0xFFD50000),
+    onError = Color.White
+)
+
 @Composable
 fun DTZShieldTheme(
     darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val colorScheme = if (darkTheme) DTZDarkColorScheme else DTZLightColorScheme
     MaterialTheme(
-        colorScheme = DTZDarkColorScheme,
+        colorScheme = colorScheme,
         typography = Typography,
         content = content
     )
